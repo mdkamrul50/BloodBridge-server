@@ -45,6 +45,80 @@ async function run() {
       }
     });
 
+    // GET /api/profile – fetch current user's profile
+    app.get('/api/profile', async (req, res) => {
+      try {
+        // Use Better Auth to get session from request headers
+        const session = await auth.api.getSession({ headers: req.headers });
+        if (!session)
+          return res
+            .status(401)
+            .json({ success: false, message: 'Unauthorized' });
+
+        const db = client.db('BloodBridge');
+        const userId = session.user.id;
+
+        // Fetch from profiles collection (if exists) else return empty
+        const profile = await db.collection('profiles').findOne({ userId });
+
+        res.json({
+          success: true,
+          profile: {
+            bloodGroup: profile?.bloodGroup || '',
+            district: profile?.district || '',
+            upazila: profile?.upazila || '',
+            phone: profile?.phone || '',
+          },
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, message: 'Server error' });
+      }
+    });
+
+    // PUT /api/profile – update profile fields (name, avatar, bloodGroup, district, upazila)
+    app.put('/api/profile', async (req, res) => {
+      try {
+        const session = await auth.api.getSession({ headers: req.headers });
+        if (!session)
+          return res
+            .status(401)
+            .json({ success: false, message: 'Unauthorized' });
+
+        const db = client.db('BloodBridge');
+        const userId = session.user.id;
+
+        const { name, avatarUrl, bloodGroup, district, upazila } = req.body;
+
+        // Update user document if name or avatarUrl provided
+        if (name || avatarUrl) {
+          const updateUser = {};
+          if (name) updateUser.name = name;
+          if (avatarUrl) updateUser.image = avatarUrl;
+          if (Object.keys(updateUser).length > 0) {
+            await db
+              .collection('users')
+              .updateOne({ _id: userId }, { $set: updateUser });
+          }
+        }
+
+        // Update or insert profile document
+        const profileUpdate = {};
+        if (bloodGroup !== undefined) profileUpdate.bloodGroup = bloodGroup;
+        if (district !== undefined) profileUpdate.district = district;
+        if (upazila !== undefined) profileUpdate.upazila = upazila;
+
+        if (Object.keys(profileUpdate).length > 0) {
+          await db
+            .collection('profiles')
+            .updateOne({ userId }, { $set: profileUpdate }, { upsert: true });
+        }
+
+        res.json({ success: true, message: 'Profile updated' });
+      } catch (error) {
+        res.status(500).json({ success: false, message: 'Server error' });
+      }
+    });
+
     app.get('/api/funding', async (req, res) => {
       try {
         const filter = {};
@@ -57,7 +131,6 @@ async function run() {
         res.status(500).json({ message: 'Server error' });
       }
     });
-
 
     app.get('/api/my-donation-requests', async (req, res) => {
       try {
@@ -79,7 +152,6 @@ async function run() {
       }
     });
 
-
     app.put('/api/donation-requests/:id', async (req, res) => {
       try {
         const db = client.db('BloodBridge');
@@ -99,10 +171,9 @@ async function run() {
           donationDate,
           donationTime,
           requestMessage,
-          status, 
+          status,
         } = req.body;
 
-       
         const updateFields = {};
         if (recipientName !== undefined)
           updateFields.recipientName = recipientName;
