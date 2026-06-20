@@ -79,6 +79,62 @@ async function run() {
       }
     });
 
+
+    app.put('/api/donation-requests/:id', async (req, res) => {
+      try {
+        const db = client.db('BloodBridge');
+        const { id } = req.params;
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({ message: 'Invalid ID format' });
+        }
+
+        // Fields that can be updated
+        const {
+          recipientName,
+          district,
+          upazila,
+          hospitalName,
+          fullAddress,
+          bloodGroup,
+          donationDate,
+          donationTime,
+          requestMessage,
+          status, 
+        } = req.body;
+
+       
+        const updateFields = {};
+        if (recipientName !== undefined)
+          updateFields.recipientName = recipientName;
+        if (district !== undefined) updateFields.district = district;
+        if (upazila !== undefined) updateFields.upazila = upazila;
+        if (hospitalName !== undefined)
+          updateFields.hospitalName = hospitalName;
+        if (fullAddress !== undefined) updateFields.fullAddress = fullAddress;
+        if (bloodGroup !== undefined) updateFields.bloodGroup = bloodGroup;
+        if (donationDate !== undefined)
+          updateFields.donationDate = donationDate;
+        if (donationTime !== undefined)
+          updateFields.donationTime = donationTime;
+        if (requestMessage !== undefined)
+          updateFields.requestMessage = requestMessage;
+        if (status !== undefined) updateFields.status = status;
+
+        const result = await db
+          .collection('donationrequests')
+          .updateOne({ _id: new ObjectId(id) }, { $set: updateFields });
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({ message: 'Request not found' });
+        }
+
+        res.json({ success: true, message: 'Request updated' });
+      } catch (error) {
+        console.error('Update error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+      }
+    });
+
     app.delete('/api/donation-requests/:id', async (req, res) => {
       try {
         const db = client.db('BloodBridge');
