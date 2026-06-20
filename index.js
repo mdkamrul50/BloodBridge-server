@@ -58,6 +58,46 @@ async function run() {
       }
     });
 
+
+    app.get('/api/my-donation-requests', async (req, res) => {
+      try {
+        const db = client.db('BloodBridge');
+        const email = req.query.email;
+        if (!email)
+          return res
+            .status(400)
+            .json({ message: 'Email query param is required' });
+
+        const requests = await db
+          .collection('donationrequests')
+          .find({ requesterEmail: email })
+          .sort({ createdAt: -1 }) // most recent first
+          .toArray();
+        res.json(requests);
+      } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+      }
+    });
+
+    app.delete('/api/donation-requests/:id', async (req, res) => {
+      try {
+        const db = client.db('BloodBridge');
+        const { id } = req.params;
+        if (!ObjectId.isValid(id))
+          return res.status(400).json({ message: 'Invalid ID' });
+
+        const result = await db
+          .collection('donationrequests')
+          .deleteOne({ _id: new ObjectId(id) });
+        if (result.deletedCount === 0)
+          return res.status(404).json({ message: 'Request not found' });
+
+        res.json({ success: true, message: 'Deleted' });
+      } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+      }
+    });
+
     // GET single request by ID (ObjectId)
     app.get('/api/donation-requests/:id', async (req, res) => {
       try {
