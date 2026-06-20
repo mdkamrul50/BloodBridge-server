@@ -24,7 +24,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // ✅ প্রথমে কানেক্ট করো
+   
     await client.connect();
     console.log('Connected to MongoDB successfully');
 
