@@ -30,7 +30,7 @@ async function run() {
 
     const db = client.db('BloodBridge');
 
-    // GET all requests with optional status filter
+    
     app.get('/api/donation-requests', async (req, res) => {
       try {
         const filter = {};
@@ -46,6 +46,23 @@ async function run() {
         res.status(500).json({ message: 'Server error' });
       }
     });
+
+
+app.get('/api/funding', async (req, res)=>{
+        try {
+          const filter = {};
+          if (req.query.status) {
+            filter.status = req.query.status;
+          }
+          const requests = await db
+            .collection('funding')
+            .find(filter)
+            .toArray();
+          res.json(requests);
+        } catch (error) {
+          res.status(500).json({ message: 'Server error' });
+        }
+})
 
     // GET single request by ID (ObjectId)
     app.get('/api/donation-requests/:id', async (req, res) => {
