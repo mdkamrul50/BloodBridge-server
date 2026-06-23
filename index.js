@@ -29,6 +29,47 @@ async function run() {
 
     const db = client.db('BloodBridge');
 
+  
+    app.get('/api/users', async (req, res) => {
+      try {
+        const db = client.db('BloodBridge');
+        const users = await db.collection('user').find({}).toArray();
+        res.json(users);
+      } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+      }
+    });
+
+    // PUT /api/users/:id – update status or role
+app.put('/api/users/update', async (req, res) => {
+  try {
+    const db = client.db('BloodBridge');
+    const { email, status, role } = req.body;
+    if (!email)
+      return res
+        .status(400)
+        .json({ success: false, message: 'Email required' });
+
+    const updateFields = {};
+    if (status) updateFields.status = status;
+    if (role) updateFields.roll = role;
+
+    const result = await db
+      .collection('user')
+      .updateOne({ email }, { $set: updateFields });
+    if (result.matchedCount === 0)
+      return res
+        .status(404)
+        .json({ success: false, message: 'User not found' });
+
+    res.json({ success: true, message: 'User updated' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+
+
     app.get('/api/donation-requests', async (req, res) => {
       try {
         const filter = {};
@@ -46,77 +87,76 @@ async function run() {
     });
 
     // GET /api/profile – fetch current user's profile
-   
-app.get('/api/profile', async (req, res) => {
-  try {
-    const db = client.db('BloodBridge');
-    const email = req.query.email;
-    if (!email)
-      return res
-        .status(400)
-        .json({ success: false, message: 'Email is required' });
 
-    const user = await db.collection('user').findOne({ email });
-    if (!user)
-      return res
-        .status(404)
-        .json({ success: false, message: 'User not found' });
+    app.get('/api/profile', async (req, res) => {
+      try {
+        const db = client.db('BloodBridge');
+        const email = req.query.email;
+        if (!email)
+          return res
+            .status(400)
+            .json({ success: false, message: 'Email is required' });
 
-    res.json({
-      success: true,
-      profile: {
-        name: user.name,
-        email: user.email,
-        avatarUrl: user.image || '',
-        bloodGroup: user.bloodGroup || '',
-        district: user.district || '',
-        upazila: user.upazila || '',
-        phone: user.phone || '',
-      },
+        const user = await db.collection('user').findOne({ email });
+        if (!user)
+          return res
+            .status(404)
+            .json({ success: false, message: 'User not found' });
+
+        res.json({
+          success: true,
+          profile: {
+            name: user.name,
+            email: user.email,
+            avatarUrl: user.image || '',
+            bloodGroup: user.bloodGroup || '',
+            district: user.district || '',
+            upazila: user.upazila || '',
+            phone: user.phone || '',
+          },
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, message: 'Server error' });
+      }
     });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
 
     // PUT /api/profile – update profile fields (name, avatar, bloodGroup, district, upazila)
-  app.put('/api/profile', async (req, res) => {
-    try {
-      const db = client.db('BloodBridge');
-      const { email, name, avatarUrl, bloodGroup, district, upazila, phone } =
-        req.body;
+    app.put('/api/profile', async (req, res) => {
+      try {
+        const db = client.db('BloodBridge');
+        const { email, name, avatarUrl, bloodGroup, district, upazila, phone } =
+          req.body;
 
-      if (!email) {
-        return res
-          .status(400)
-          .json({ success: false, message: 'Email is required' });
+        if (!email) {
+          return res
+            .status(400)
+            .json({ success: false, message: 'Email is required' });
+        }
+
+        const updateFields = {};
+        if (name) updateFields.name = name;
+        if (avatarUrl) updateFields.image = avatarUrl;
+        if (bloodGroup !== undefined) updateFields.bloodGroup = bloodGroup;
+        if (district !== undefined) updateFields.district = district;
+        if (upazila !== undefined) updateFields.upazila = upazila;
+        if (phone !== undefined) updateFields.phone = phone;
+
+        const result = await db
+          .collection('user')
+          .updateOne({ email }, { $set: updateFields });
+
+        if (result.matchedCount === 0) {
+          return res
+            .status(404)
+            .json({ success: false, message: 'User not found' });
+        }
+
+        res.json({ success: true, message: 'Profile updated' });
+      } catch (error) {
+        console.error('Profile PUT error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
       }
-
-      const updateFields = {};
-      if (name) updateFields.name = name;
-      if (avatarUrl) updateFields.image = avatarUrl;
-      if (bloodGroup !== undefined) updateFields.bloodGroup = bloodGroup;
-      if (district !== undefined) updateFields.district = district;
-      if (upazila !== undefined) updateFields.upazila = upazila;
-      if (phone !== undefined) updateFields.phone = phone;
-
-      const result = await db
-        .collection('user')
-        .updateOne({ email }, { $set: updateFields });
-
-      if (result.matchedCount === 0) {
-        return res
-          .status(404)
-          .json({ success: false, message: 'User not found' });
-      }
-
-      res.json({ success: true, message: 'Profile updated' });
-    } catch (error) {
-      console.error('Profile PUT error:', error);
-      res.status(500).json({ success: false, message: 'Server error' });
-    }
-  });
+    });
 
     app.get('/api/funding', async (req, res) => {
       try {
@@ -151,59 +191,62 @@ app.get('/api/profile', async (req, res) => {
       }
     });
 
-  app.put('/api/donation-requests/:id', async (req, res) => {
-    try {
-      const db = client.db('BloodBridge');
-      const { id } = req.params;
-      if (!ObjectId.isValid(id)) {
-        return res.status(400).json({ message: 'Invalid ID format' });
+    app.put('/api/donation-requests/:id', async (req, res) => {
+      try {
+        const db = client.db('BloodBridge');
+        const { id } = req.params;
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({ message: 'Invalid ID format' });
+        }
+
+        const {
+          recipientName,
+          district,
+          upazila,
+          hospitalName,
+          fullAddress,
+          bloodGroup,
+          donationDate,
+          donationTime,
+          requestMessage,
+          status,
+          donorName,
+          donorEmail,
+        } = req.body;
+
+        const updateFields = {};
+        if (recipientName !== undefined)
+          updateFields.recipientName = recipientName;
+        if (district !== undefined) updateFields.district = district;
+        if (upazila !== undefined) updateFields.upazila = upazila;
+        if (hospitalName !== undefined)
+          updateFields.hospitalName = hospitalName;
+        if (fullAddress !== undefined) updateFields.fullAddress = fullAddress;
+        if (bloodGroup !== undefined) updateFields.bloodGroup = bloodGroup;
+        if (donationDate !== undefined)
+          updateFields.donationDate = donationDate;
+        if (donationTime !== undefined)
+          updateFields.donationTime = donationTime;
+        if (requestMessage !== undefined)
+          updateFields.requestMessage = requestMessage;
+        if (status !== undefined) updateFields.status = status;
+        if (donorName !== undefined) updateFields.donorName = donorName; // ←
+        if (donorEmail !== undefined) updateFields.donorEmail = donorEmail; // ←
+
+        const result = await db
+          .collection('donationrequests')
+          .updateOne({ _id: new ObjectId(id) }, { $set: updateFields });
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({ message: 'Request not found' });
+        }
+
+        res.json({ success: true, message: 'Request updated' });
+      } catch (error) {
+        console.error('Update error:', error);
+        res.status(500).json({ message: 'Internal server error' });
       }
-
-      const {
-        recipientName,
-        district,
-        upazila,
-        hospitalName,
-        fullAddress,
-        bloodGroup,
-        donationDate,
-        donationTime,
-        requestMessage,
-        status,
-        donorName, 
-        donorEmail, 
-      } = req.body;
-
-      const updateFields = {};
-      if (recipientName !== undefined)
-        updateFields.recipientName = recipientName;
-      if (district !== undefined) updateFields.district = district;
-      if (upazila !== undefined) updateFields.upazila = upazila;
-      if (hospitalName !== undefined) updateFields.hospitalName = hospitalName;
-      if (fullAddress !== undefined) updateFields.fullAddress = fullAddress;
-      if (bloodGroup !== undefined) updateFields.bloodGroup = bloodGroup;
-      if (donationDate !== undefined) updateFields.donationDate = donationDate;
-      if (donationTime !== undefined) updateFields.donationTime = donationTime;
-      if (requestMessage !== undefined)
-        updateFields.requestMessage = requestMessage;
-      if (status !== undefined) updateFields.status = status;
-      if (donorName !== undefined) updateFields.donorName = donorName; // ←
-      if (donorEmail !== undefined) updateFields.donorEmail = donorEmail; // ←
-
-      const result = await db
-        .collection('donationrequests')
-        .updateOne({ _id: new ObjectId(id) }, { $set: updateFields });
-
-      if (result.matchedCount === 0) {
-        return res.status(404).json({ message: 'Request not found' });
-      }
-
-      res.json({ success: true, message: 'Request updated' });
-    } catch (error) {
-      console.error('Update error:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  });
+    });
 
     app.delete('/api/donation-requests/:id', async (req, res) => {
       try {
