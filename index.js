@@ -361,17 +361,32 @@ async function run() {
           createdAt: new Date(),
         };
 
-        const result = await db
-          .collection('donationrequests')
-          .insertOne(newRequest);
+    const user = await db.collection('user').findOne({ email: requesterEmail });
+    if (!user) {
+      return res.status(400).json({ message: 'Requester not found' });
+    }
+    if ((user.status || 'active').toLowerCase() === 'blocked') {
+      return res.status(403).json({
+        success: false,
+        message:
+          'Your account is blocked. You cannot create donation requests.',
+      });
+    }
 
-        res.status(201).json({
-          success: true,
-          message: 'Donation request created successfully',
-          id: result.insertedId,
-        });
+    if (
+      !recipientName ||
+      !district ||
+      !upazila ||
+      !bloodGroup ||
+      !donationDate ||
+      !donationTime ||
+      !requesterName ||
+      !requesterEmail
+    ) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
       } catch (error) {
-        console.error('Error creating request:', error);
+ 
         res.status(500).json({ message: 'Internal server error' });
       }
     });
