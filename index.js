@@ -29,7 +29,6 @@ async function run() {
 
     const db = client.db('BloodBridge');
 
-  
     app.get('/api/users', async (req, res) => {
       try {
         const db = client.db('BloodBridge');
@@ -41,47 +40,59 @@ async function run() {
     });
 
     // PUT /api/users/:id – update status or role
-app.put('/api/users/update', async (req, res) => {
-  try {
-    const db = client.db('BloodBridge');
-    const { email, status, role } = req.body;
-    if (!email)
-      return res
-        .status(400)
-        .json({ success: false, message: 'Email required' });
+    app.put('/api/users/update', async (req, res) => {
+      try {
+        const db = client.db('BloodBridge');
+        const { email, status, role } = req.body;
+        if (!email)
+          return res
+            .status(400)
+            .json({ success: false, message: 'Email required' });
 
-    const updateFields = {};
-    if (status) updateFields.status = status;
-    if (role) updateFields.roll = role;
+        const updateFields = {};
+        if (status) updateFields.status = status;
+        if (role) updateFields.roll = role;
 
-    const result = await db
-      .collection('user')
-      .updateOne({ email }, { $set: updateFields });
-    if (result.matchedCount === 0)
-      return res
-        .status(404)
-        .json({ success: false, message: 'User not found' });
+        const result = await db
+          .collection('user')
+          .updateOne({ email }, { $set: updateFields });
+        if (result.matchedCount === 0)
+          return res
+            .status(404)
+            .json({ success: false, message: 'User not found' });
 
-    res.json({ success: true, message: 'User updated' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
+        res.json({ success: true, message: 'User updated' });
+      } catch (error) {
+        res.status(500).json({ success: false, message: 'Server error' });
+      }
+    });
 
-
-
+    // server.js (inside run() function)
     app.get('/api/donation-requests', async (req, res) => {
       try {
+        const db = client.db('BloodBridge');
         const filter = {};
-        if (req.query.status) {
+
+        if (req.query.status && req.query.status !== 'all') {
           filter.status = req.query.status;
         }
+        if (req.query.bloodGroup) {
+          filter.bloodGroup = req.query.bloodGroup;
+        }
+        if (req.query.district) {
+          filter.district = req.query.district;
+        }
+        if (req.query.upazila) {
+          filter.upazila = req.query.upazila;
+        }
+
         const requests = await db
           .collection('donationrequests')
           .find(filter)
           .toArray();
         res.json(requests);
       } catch (error) {
+        console.error(error);
         res.status(500).json({ message: 'Server error' });
       }
     });
