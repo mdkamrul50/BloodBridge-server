@@ -3,7 +3,7 @@ const express = require('express');
 const dotenv = require('dotenv');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb'); // ✅ ObjectId যোগ
 const cors = require('cors');
-
+require('dotenv').config();
 dotenv.config();
 
 const app = express();
@@ -373,6 +373,39 @@ async function run() {
       } catch (error) {
         console.error('Error creating request:', error);
         res.status(500).json({ message: 'Internal server error' });
+      }
+    });
+
+
+    const Stripe = require('stripe');
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+    app.post('/api/confirm-funding', async (req, res) => {
+      try {
+        const { sessionId } = req.body;
+        if (!sessionId)
+          return res.status(400).json({ message: 'Missing session_id' });
+
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        if (session.payment_status !== 'paid') {
+          return res.status(402).json({ message: 'Payment not completed' });
+        }
+
+        const { donorName, donorEmail, amount } = session.metadata;
+
+        const db = client.db('BloodBridge');
+        await db.collection('funding').insertOne({
+          donorName: donorName || 'Anonymous',
+          donorEmail: donorEmail || '',
+          amount: Number(amount),
+          date: new Date().toISOString().split('T')[0],
+          createdAt: new Date(),
+        });
+
+        res.json({ success: true, message: 'Donation recorded' });
+      } catch (error) {
+        console.error('Confirm funding error:', error);
+        res.status(500).json({ message: 'Server error' });
       }
     });
 
