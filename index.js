@@ -1,4 +1,4 @@
-// server.js
+
 const express = require('express');
 const dotenv = require('dotenv');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb'); // ✅ ObjectId যোগ
@@ -28,6 +28,10 @@ async function run() {
     console.log('Connected to MongoDB successfully');
 
     const db = client.db('BloodBridge');
+
+    app.get('/', (req, res) => {
+      res.send('BloodBridge API is running ✅');
+    });
 
     app.get('/api/users', async (req, res) => {
       try {
@@ -361,36 +365,36 @@ async function run() {
           createdAt: new Date(),
         };
 
-    const user = await db.collection('user').findOne({ email: requesterEmail });
-    if (!user) {
-      return res.status(400).json({ message: 'Requester not found' });
-    }
-    if ((user.status || 'active').toLowerCase() === 'blocked') {
-      return res.status(403).json({
-        success: false,
-        message:
-          'Your account is blocked. You cannot create donation requests.',
-      });
-    }
+        const user = await db
+          .collection('user')
+          .findOne({ email: requesterEmail });
+        if (!user) {
+          return res.status(400).json({ message: 'Requester not found' });
+        }
+        if ((user.status || 'active').toLowerCase() === 'blocked') {
+          return res.status(403).json({
+            success: false,
+            message:
+              'Your account is blocked. You cannot create donation requests.',
+          });
+        }
 
-    if (
-      !recipientName ||
-      !district ||
-      !upazila ||
-      !bloodGroup ||
-      !donationDate ||
-      !donationTime ||
-      !requesterName ||
-      !requesterEmail
-    ) {
-      return res.status(400).json({ message: 'Missing required fields' });
-    }
+        if (
+          !recipientName ||
+          !district ||
+          !upazila ||
+          !bloodGroup ||
+          !donationDate ||
+          !donationTime ||
+          !requesterName ||
+          !requesterEmail
+        ) {
+          return res.status(400).json({ message: 'Missing required fields' });
+        }
       } catch (error) {
- 
         res.status(500).json({ message: 'Internal server error' });
       }
     });
-
 
     const Stripe = require('stripe');
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
